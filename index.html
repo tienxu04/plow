@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drive Your Plow Over the Bones of the Dead</title>
+    <style>
+        :root {
+            --primary-color: #1b3022; /* Dark Green - Rừng thông đen */
+            --accent-color: #8da399;  /* Sage Green - Màu lá xám */
+            --highlight: #d4a373;     /* Màu đồng nhạt */
+            --bg-color: #f0f2f1;
+            --text-color: #2b2d42;
+            --container-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: auto;
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-top: 6px solid var(--primary-color);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            font-size: 1.6rem;
+            margin-bottom: 5px;
+        }
+
+        .author {
+            text-align: center;
+            font-style: italic;
+            color: var(--accent-color);
+            margin-bottom: 25px;
+        }
+
+        #audioPlayer {
+            width: 100%;
+            height: 45px;
+            margin-bottom: 15px;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .chapter-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        .chapter-list li {
+            padding: 15px;
+            border-bottom: 1px solid #f1f1f1;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            transition: 0.2s;
+        }
+
+        .chapter-list li:hover { background: #f9fbf9; }
+
+        .chapter-list li.active {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .chapter-list li:last-child { border-bottom: none; }
+
+        .playing-indicator {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--highlight);
+        }
+
+        .active .playing-indicator { display: inline; }
+
+        .save-msg {
+            font-size: 0.75rem;
+            color: var(--accent-color);
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        /* Scrollbar */
+        .chapter-list::-webkit-scrollbar { width: 5px; }
+        .chapter-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Drive Your Plow Over the Bones of the Dead</h1>
+    <div class="author">Olga Tokarczuk</div>
+
+    <audio id="audioPlayer" controls preload="auto"></audio>
+
+    <div class="status-bar">
+        <strong>Đang nghe:</strong> <span id="currentTitle">Chưa chọn chương</span>
+        <div id="resumeStatus" style="font-size: 0.8rem; color: var(--highlight); margin-top: 4px;"></div>
+    </div>
+
+    <ul class="chapter-list" id="chapterList"></ul>
+    
+    <div class="save-msg">Vị trí nghe được tự động lưu lại 💾</div>
+</div>
+
+<script>
+    const audioPlayer = document.getElementById('audioPlayer');
+    const chapterListElement = document.getElementById('chapterList');
+    const currentTitleElement = document.getElementById('currentTitle');
+    const resumeStatusElement = document.getElementById('resumeStatus');
+
+    const BOOK_KEY = 'plow_bones_progress';
+    const totalFiles = 18;
+    const chapters = [];
+
+    // 1. Khởi tạo danh sách 18 files (01.mp3 -> 18.mp3)
+    for (let i = 1; i <= totalFiles; i++) {
+        let num = i.toString().padStart(2, '0');
+        chapters.push({
+            index: i - 1,
+            title: `Chapter ${i}`,
+            file: `${num}.mp3`
+        });
+    }
+
+    // 2. Render danh sách
+    chapters.forEach((ch, idx) => {
+        const li = document.createElement('li');
+        li.id = `ch-${idx}`;
+        li.innerHTML = `<span>${ch.title}</span> <span class="playing-indicator">NOW PLAYING 🔊</span>`;
+        li.onclick = () => loadAndPlay(idx, 0, true);
+        chapterListElement.appendChild(li);
+    });
+
+    let currentIdx = -1;
+
+    // 3. Hàm Load & Play
+    function loadAndPlay(index, startTime = 0, autoPlay = false) {
+        if (index < 0 || index >= chapters.length) return;
+
+        // Update UI
+        document.querySelectorAll('.chapter-list li').forEach(el => el.classList.remove('active'));
+        const activeLi = document.getElementById(`ch-${index}`);
+        activeLi.classList.add('active');
+        activeLi.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        currentIdx = index;
+        const chapter = chapters[index];
+        currentTitleElement.textContent = chapter.title;
+        
+        audioPlayer.src = chapter.file;
+        audioPlayer.currentTime = startTime;
+
+        if (autoPlay) {
+            audioPlayer.play().catch(e => console.log("Chờ tương tác..."));
+        }
+
+        // Lock Screen Media Session
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: chapter.title,
+                artist: "Olga Tokarczuk",
+                album: "Drive Your Plow Over the Bones of the Dead",
+                art: [{ src: 'cover.jpg', sizes: '512x512', type: 'image/jpeg' }]
+            });
+        }
+    }
+
+    // 4. LocalStorage: Lưu và Load
+    function saveProgress() {
+        const data = { index: currentIdx, time: audioPlayer.currentTime };
+        localStorage.setItem(BOOK_KEY, JSON.stringify(data));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem(BOOK_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            resumeStatusElement.textContent = `Đã khôi phục vị trí cũ lúc ${Math.floor(data.time / 60)}ph ${(Math.floor(data.time % 60))}s`;
+            loadAndPlay(data.index, data.time, false);
+            setTimeout(() => { resumeStatusElement.textContent = ""; }, 5000);
+        } else {
+            loadAndPlay(0, 0, false);
+        }
+    }
+
+    // 5. Events
+    audioPlayer.onended = () => loadAndPlay(currentIdx + 1, 0, true);
+    
+    // Lưu mỗi 5s và khi Pause
+    audioPlayer.ontimeupdate = () => {
+        if (Math.floor(audioPlayer.currentTime) % 5 === 0) saveProgress();
+    };
+    audioPlayer.onpause = saveProgress;
+
+    // Lock screen controls
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('previoustrack', () => loadAndPlay(currentIdx - 1, 0, true));
+        navigator.mediaSession.setActionHandler('nexttrack', () => loadAndPlay(currentIdx + 1, 0, true));
+    }
+
+    window.onload = loadProgress;
+</script>
+
+</body>
+</html>
