@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Player v4 - Olga Tokarczuk</title>
+    <title>Master Player v6 - Perfect Resume</title>
     <style>
         :root {
             --primary-color: #1b3022;
@@ -13,37 +13,59 @@
             --container-bg: #ffffff;
         }
         body { font-family: 'Georgia', serif; background: var(--bg-color); padding: 20px; margin: 0; }
-        .container { max-width: 600px; margin: auto; background: var(--container-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 8px solid var(--primary-color); }
-        h1 { text-align: center; color: var(--primary-color); font-size: 1.4rem; margin-bottom: 5px; }
-        .author { text-align: center; font-style: italic; color: var(--accent-color); margin-bottom: 20px; }
+        .container { max-width: 600px; margin: auto; background: var(--container-bg); padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 8px solid var(--primary-color); position: relative; }
         
-        #audioPlayer { width: 100%; height: 50px; margin-bottom: 10px; }
+        /* Nút Resume lớn khi mới vào trang */
+        #initialOverlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 10;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+        }
+        #initialOverlay button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        h1 { text-align: center; color: var(--primary-color); font-size: 1.4rem; margin-bottom: 20px; }
+        #audioPlayer { width: 100%; height: 50px; margin-bottom: 15px; }
+        
         .extra-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
-        .extra-controls button { background: var(--primary-color); color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
-        .extra-controls select { padding: 7px; border-radius: 5px; border: 1px solid var(--accent-color); font-size: 0.8rem; cursor: pointer; }
+        .extra-controls button { background: var(--primary-color); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        .extra-controls select { padding: 9px; border-radius: 5px; border: 1px solid var(--accent-color); font-size: 0.8rem; }
 
         .status-bar { background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9rem; border-left: 4px solid var(--accent-color); }
         .chapter-list { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
-        .chapter-list li { padding: 15px; border-bottom: 1px solid #f1f1f1; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .chapter-list li { padding: 15px; border-bottom: 1px solid #f1f1f1; cursor: pointer; display: flex; justify-content: space-between; }
         .chapter-list li.active { background-color: var(--primary-color); color: #fff; font-weight: bold; }
-        .playing-indicator { display: none; color: var(--highlight); font-size: 0.8rem; }
-        .active .playing-indicator { display: inline; }
-        .chapter-list::-webkit-scrollbar { width: 6px; }
-        .chapter-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div id="initialOverlay">
+        <p id="resumeTxt" style="margin-bottom: 15px; font-weight: bold; color: var(--primary-color);"></p>
+        <button onclick="startFromLastPlayed()">Tiếp tục nghe ▶️</button>
+    </div>
+
     <h1>Drive Your Plow Over the Bones of the Dead</h1>
-    <div class="author">Olga Tokarczuk</div>
     
     <audio id="audioPlayer" controls></audio>
     
     <div class="extra-controls">
         <button onclick="skip(-10)">⏪ -10s</button>
         <button onclick="skip(10)">+10s ⏩</button>
-        <label for="speedSelect" style="font-size: 0.8rem;">Tốc độ:</label>
         <select id="speedSelect" onchange="changeSpeed(this.value)">
             <option value="1">1.0x</option>
             <option value="1.25">1.25x</option>
@@ -55,7 +77,6 @@
 
     <div class="status-bar">
         <strong>Đang phát:</strong> <span id="currentTitle">...</span>
-        <div id="resumeStatus" style="font-size: 0.8rem; color: var(--highlight); margin-top: 5px; font-weight: bold;"></div>
     </div>
 
     <ul class="chapter-list" id="chapterList"></ul>
@@ -65,10 +86,10 @@
     const audioPlayer = document.getElementById('audioPlayer');
     const speedSelect = document.getElementById('speedSelect');
     const chapterListElement = document.getElementById('chapterList');
-    const currentTitleElement = document.getElementById('currentTitle');
-    const resumeStatusElement = document.getElementById('resumeStatus');
+    const initialOverlay = document.getElementById('initialOverlay');
+    const resumeTxt = document.getElementById('resumeTxt');
 
-    const BOOK_KEY = 'plow_bones_master_v4';
+    const BOOK_KEY = 'plow_bones_master_v6';
     const totalFiles = 18;
     const chapters = [];
     let currentIdx = 0;
@@ -83,8 +104,8 @@
     chapters.forEach((ch, idx) => {
         const li = document.createElement('li');
         li.id = `ch-${idx}`;
-        li.innerHTML = `<span>${ch.title}</span> <span class="playing-indicator">🔊 Playing</span>`;
-        li.onclick = () => loadAndPlay(idx, 0, true);
+        li.innerHTML = `<span>${ch.title}</span>`;
+        li.onclick = () => { initialOverlay.style.display = 'none'; loadAndPlay(idx, 0, true); };
         chapterListElement.appendChild(li);
     });
 
@@ -94,7 +115,7 @@
         targetTime = startTime;
         
         const chapter = chapters[index];
-        currentTitleElement.textContent = chapter.title;
+        document.getElementById('currentTitle').textContent = chapter.title;
         document.querySelectorAll('.chapter-list li').forEach(el => el.classList.remove('active'));
         document.getElementById(`ch-${index}`).classList.add('active');
         document.getElementById(`ch-${index}`).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -103,7 +124,12 @@
         audioPlayer.load();
 
         if (autoPlay) {
-            audioPlayer.play().catch(() => console.log("Chờ tương tác..."));
+            // Sử dụng settimeout để đảm bảo src đã sẵn sàng
+            setTimeout(() => { 
+                audioPlayer.play().catch(e => {
+                    console.log("Cần nhấn nút để cấp quyền phát nhạc");
+                });
+            }, 150);
         }
     }
 
@@ -112,8 +138,19 @@
             audioPlayer.currentTime = targetTime;
             targetTime = 0;
         }
-        audioPlayer.playbackRate = currentSpeed; // Áp dụng tốc độ đã lưu
+        audioPlayer.playbackRate = currentSpeed;
     });
+
+    function startFromLastPlayed() {
+        initialOverlay.style.display = 'none';
+        const saved = localStorage.getItem(BOOK_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            loadAndPlay(data.index, data.time, true);
+        } else {
+            loadAndPlay(0, 0, true);
+        }
+    }
 
     function changeSpeed(speed) {
         currentSpeed = parseFloat(speed);
@@ -136,18 +173,20 @@
         }
     }
 
-    function loadProgress() {
+    function checkProgressOnLoad() {
         const saved = localStorage.getItem(BOOK_KEY);
         if (saved) {
             const data = JSON.parse(saved);
             currentSpeed = data.speed || 1;
-            speedSelect.value = currentSpeed; // Cập nhật dropdown UI
+            speedSelect.value = currentSpeed;
             
             const mins = Math.floor(data.time / 60);
             const secs = Math.floor(data.time % 60);
-            resumeStatusElement.textContent = `↩️ Khôi phục: ${mins}p ${secs}s | Tốc độ: ${currentSpeed}x`;
+            resumeTxt.textContent = `Bạn đang nghe dở Chương ${data.index + 1} tại ${mins}p ${secs}s`;
+            initialOverlay.style.display = 'flex';
+            
+            // Load ngầm để hiển thị giao diện đúng chương
             loadAndPlay(data.index, data.time, false);
-            setTimeout(() => { resumeStatusElement.textContent = ""; }, 6000);
         } else {
             loadAndPlay(0, 0, false);
         }
@@ -157,7 +196,7 @@
     audioPlayer.onpause = saveProgress;
     audioPlayer.ontimeupdate = () => { if (Math.floor(audioPlayer.currentTime) % 2 === 0) saveProgress(); };
 
-    window.onload = loadProgress;
+    window.onload = checkProgressOnLoad;
 </script>
 </body>
 </html>
